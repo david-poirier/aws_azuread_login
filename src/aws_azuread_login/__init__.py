@@ -237,7 +237,7 @@ async def _check_for_visible_element(page, selector):
         return False
 
 
-async def authenticate(entry_url, *, username=None, password=None, code=None, headless=True, stay_signed_in=False):
+async def authenticate(entry_url, *, username=None, password=None, code=None, headless=True, stay_signed_in=True):
     print('Loading entry url...')
     browser, page = await _load_entry(entry_url, headless, stay_signed_in)
     # we can't really be sure whether we'll get prompted for OTC, 

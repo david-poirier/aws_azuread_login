@@ -14,7 +14,8 @@ def test_non_interactive_auth():
                 ENTRY_URL,
                 username=USERNAME,
                 password=PASSWORD,
-                code=CODE))
+                code=CODE,
+                stay_signed_in=False))
     assert(len(roles) > 0)
 
 def test_get_credentials():
@@ -23,7 +24,8 @@ def test_get_credentials():
                 ENTRY_URL,
                 username=USERNAME,
                 password=PASSWORD,
-                code=CODE))
+                code=CODE,
+                stay_signed_in=False))
     assert(len(roles) > 0)
     creds = []
     for role in roles:
@@ -36,7 +38,9 @@ def test_get_credentials():
 
 def test_interactive_auth():
     roles = asyncio.get_event_loop().run_until_complete(
-            aws_azuread_login.authenticate(ENTRY_URL))
+            aws_azuread_login.authenticate(
+                ENTRY_URL,
+                stay_signed_in=False))
     assert(len(roles) > 0)
 
 
