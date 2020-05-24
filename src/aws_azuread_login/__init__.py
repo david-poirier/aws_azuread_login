@@ -92,13 +92,15 @@ async def _load_entry(entry_url, headless, stay_signed_in):
     browser = await pyppeteer.launch(options=launch_options)
     page = await browser.newPage()
     await page.goto(entry_url, options={'waitUntil': ['load','domcontentloaded','networkidle0','networkidle2']})
-    return page
+    return browser, page
+
 
 def _get_default_username():
     filepath = os.path.expanduser('~/.aws-azuread-login/default-username')
     if os.path.exists(filepath) and os.path.isfile(filepath):
         with open(filepath) as f:
             return f.read()
+
 
 def _set_default_username(username):
     dirpath = os.path.expanduser('~/.aws-azuread-login')
@@ -110,12 +112,20 @@ def _set_default_username(username):
     with open(filepath, 'w') as f:
         f.write(username)
 
+
 def _get_keyring_password_for_username(username):
     return keyring.get_password('aws-azuread-login', username)
+
+
 def _set_keyring_password_for_username(username, password):
     keyring.set_password('aws-azuread-login', username, password)
 
+
 async def _input_username(page, username):
+    input_selector = 'input[type="email"][name="loginfmt"]'
+    submit_selector = 'input[type="submit"][value="Next"]'
+    error_selector = '#usernameError'
+
     # Username
     if username is None:
         default_username = _get_default_username()
@@ -131,16 +141,16 @@ async def _input_username(page, username):
         while username in [None, '']:
             username = input('Username: ')
 
-        await page.type('input[type="email"][name="loginfmt"]', username)
-        await page.click('input[type="submit"][value="Next"]')
+        await page.type(input_selector, username)
+        await page.click(submit_selector)
         
         while True:
-            if not await _check_for_visible_element(page, 'input[type="email"][name="loginfmt"]'):
+            if not await _check_for_visible_element(page, input_selector):
                 _set_default_username(username)
                 return
-            elif await _check_for_visible_element(page, '#usernameError'):
+            elif await _check_for_visible_element(page, error_selector):
                 username = None
-                await page.click('input[type="email"][name="loginfmt"]', clickCount=3)
+                await page.evaluate(f'() => document.querySelector(\'{input_selector}\').value = \'\'')
                 print('Unknown username, try again')
                 break
             # wait for one of the above to appear
@@ -148,6 +158,10 @@ async def _input_username(page, username):
 
 
 async def _input_password(page, username, password):
+    input_selector = 'input[type="password"][name="passwd"]'
+    submit_selector = 'input[type="submit"][value="Sign in"]'
+    error_selector = '#passwordError'
+    
     # Password
     if password is None:
         keyring_password = _get_keyring_password_for_username(username)
@@ -163,16 +177,17 @@ async def _input_password(page, username, password):
         while password in [None, '']:
             password = getpass.getpass('Password: ')
 
-        await page.type('input[type="password"][name="passwd"]', password)
-        await page.click('input[type="submit"][value="Sign in"]')
-            
+        await page.type(input_selector, password)
+        await page.click(submit_selector)
+        await asyncio.sleep(1)
+
         while True:
-            if not await _check_for_visible_element(page, 'input[type="password"][name="passwd"]'):
+            if not await _check_for_visible_element(page, input_selector):
                 _set_keyring_password_for_username(username, password)
                 return
-            elif await _check_for_visible_element(page, '#passwordError'):
+            elif await _check_for_visible_element(page, error_selector):
                 password = None
-                await page.click('input[type="password"][name="passwd"]', clickCount=3)
+                await page.evaluate(f'() => document.querySelector(\'{input_selector}\').value = \'\'')
                 print('Incorrect password, try again')
                 break
             # wait for one of the above to appear
@@ -180,21 +195,26 @@ async def _input_password(page, username, password):
 
 
 async def _input_code(page, code):
+    input_selector = 'input[type="tel"][name="otc"]'
+    checkbox_selector = 'input[type="checkbox"][name="rememberMFA"]'
+    submit_selector = 'input[type="submit"][value="Verify"]'
+    error_selector = '#idSpan_SAOTCC_Error_OTC'
+    
     while True:
         while code is None:
             code = input('One-time code: ')
 
-        await page.type('input[type="tel"][name="otc"]', code)
-        await page.click('input[type="checkbox"][name="rememberMFA"]')
-        await page.click('input[type="submit"][value="Verify"]')
+        await page.type(input_selector, code)
+        await page.click(checkbox_selector)
+        await page.click(submit_selector)
 
         while True:
-            if not await _check_for_visible_element(page, 'input[type="tel"][name="otc"]'):
+            if not await _check_for_visible_element(page, input_selector):
                 return
-            elif await _check_for_visible_element(page, '#idSpan_SAOTCC_Error_OTC'):
+            elif await _check_for_visible_element(page, error_selector):
                 code = None
-                await page.click('input[type="tel"][name="otc"]', clickCount=3)
-                await page.click('input[type="checkbox"][name="rememberMFA"]')
+                await page.evaluate(f'() => document.querySelector(\'{input_selector}\').value = \'\'')
+                await page.click(checkbox_selector)
                 print('Incorrect code, try again')
                 break
             # wait for one of the above to appear
@@ -207,7 +227,6 @@ async def _input_stay_signed_in(page, stay_signed_in):
         await page.click('input[type="submit"][value="Yes"]')
     else:
         await page.click('input[type="button"][value="No"]')
-    await page.waitForNavigation(options={'waitUntil': ['load','domcontentloaded','networkidle0','networkidle2']})
 
 
 async def _check_for_visible_element(page, selector):
@@ -217,15 +236,17 @@ async def _check_for_visible_element(page, selector):
     except:
         return False
 
+
 async def authenticate(entry_url, *, username=None, password=None, code=None, headless=True, stay_signed_in=False):
     print('Loading entry url...')
-    page = await _load_entry(entry_url, headless, stay_signed_in)
+    browser, page = await _load_entry(entry_url, headless, stay_signed_in)
     # we can't really be sure whether we'll get prompted for OTC, 
     # stay logged in, etc or if the process will go straight thru to role selection
     # so we'll just take it as it comes
     while True:
         if await _check_for_visible_element(page, 'input[type="email"][name="loginfmt"]'):
             await _input_username(page, username)
+        elif await _check_for_visible_element(page, 'input[type="password"][name="passwd"]'):
             await _input_password(page, username, password)
         elif await _check_for_visible_element(page, 'input[type="tel"][name="otc"]'):
             await _input_code(page, code)
@@ -233,6 +254,7 @@ async def authenticate(entry_url, *, username=None, password=None, code=None, he
             await _input_stay_signed_in(page, stay_signed_in)
         elif await page.J('#signin_button'):
             roles = await _get_roles(page)
+            await browser.close()
             return roles
         else:
             # wait for a known option to appear
@@ -253,7 +275,7 @@ if __name__ == '__main__':
 
     roles = asyncio.get_event_loop().run_until_complete(
             authenticate(
-                entry_url, username=username, password=password, code=code, headless=False, stay_signed_in=False))
+                entry_url, username=username, password=password, code=code, headless=True, stay_signed_in=False))
     print(roles)
     input('!')
 
