@@ -25,6 +25,6 @@ setup(
         package_dir={'': 'src'},
         py_modules=[splitext(basename(path))[0] for path in glob.glob('src/*.py')],
         include_package_data=True,
-        install_requires=['beautifulsoup4','boto3'],
+        install_requires=['keyring','beautifulsoup4','boto3','pyppeteer'],
     )
 
