@@ -1,12 +1,13 @@
 import asyncio
+import getpass
 import os
 
 import aws_azuread_login
 
-ENTRY_URL = os.environ['AZUREAD_ENTRY_URL']
-USERNAME = os.environ.get('AZUREAD_USERNAME')
-PASSWORD = os.environ.get('AZUREAD_PASSWORD')
-CODE = os.environ.get('AZUREAD_CODE')
+ENTRY_URL = input('Entry URL: ')
+USERNAME = input('Username: ')
+PASSWORD = getpass.getpass('Password: ')
+CODE = input('OTP: ')
 
 def test_non_interactive_auth():
     roles = asyncio.get_event_loop().run_until_complete(

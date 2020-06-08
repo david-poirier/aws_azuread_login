@@ -233,9 +233,8 @@ async def _check_for_visible_element(page, selector):
     try:
         element = await page.J(selector)
         return element and await element.isIntersectingViewport()
-    except:
+    except pyppeteer.errors.NetworkError:
         return False
-
 
 async def authenticate(entry_url, *, username=None, password=None, code=None, headless=True, stay_signed_in=True):
     print('Loading entry url...')
