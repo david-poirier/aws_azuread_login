@@ -2,6 +2,11 @@
 
 Python 3.6+ library to enable ADFS auth against AWS
 
+## Installation
+```
+pip install aws-azuread-login 
+```
+
 ## Usage
 
 ```python
