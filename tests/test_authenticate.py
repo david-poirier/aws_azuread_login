@@ -1,4 +1,3 @@
-import asyncio
 import getpass
 import os
 
@@ -10,23 +9,23 @@ PASSWORD = getpass.getpass('Password: ')
 CODE = input('OTP: ')
 
 def test_non_interactive_auth():
-    roles = asyncio.get_event_loop().run_until_complete(
-            aws_azuread_login.authenticate(
+    roles = aws_azuread_login.authenticate(
                 ENTRY_URL,
                 username=USERNAME,
                 password=PASSWORD,
                 code=CODE,
-                stay_signed_in=False))
+                stay_signed_in=False,
+                headless=False)
     assert(len(roles) > 0)
 
 def test_get_credentials():
-    roles = asyncio.get_event_loop().run_until_complete(
-            aws_azuread_login.authenticate(
+    roles = aws_azuread_login.authenticate(
                 ENTRY_URL,
                 username=USERNAME,
                 password=PASSWORD,
                 code=CODE,
-                stay_signed_in=False))
+                stay_signed_in=False,
+                headless=False)
     assert(len(roles) > 0)
     creds = []
     for role in roles:
@@ -38,10 +37,22 @@ def test_get_credentials():
     assert(len(creds) > 0)
 
 def test_interactive_auth():
-    roles = asyncio.get_event_loop().run_until_complete(
-            aws_azuread_login.authenticate(
+    roles = aws_azuread_login.authenticate(
                 ENTRY_URL,
-                stay_signed_in=False))
+                stay_signed_in=False,
+                headless=False)
     assert(len(roles) > 0)
+
+def test_get_multiple_credentials():
+    roles = aws_azuread_login.authenticate(
+                ENTRY_URL,
+                username=USERNAME,
+                password=PASSWORD,
+                code=CODE,
+                stay_signed_in=False,
+                headless=False)
+    assert(len(roles) > 0)
+    creds = aws_azuread_login.get_multiple_credentials(roles)
+    assert(len(creds) > 0)
 
 

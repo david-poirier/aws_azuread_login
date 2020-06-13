@@ -8,6 +8,7 @@ import urllib
 import xml.etree.ElementTree
 
 import boto3
+import botocore
 import bs4
 import keyring
 import pyppeteer
@@ -91,7 +92,9 @@ async def _load_entry(entry_url, headless, stay_signed_in):
 
     browser = await pyppeteer.launch(options=launch_options)
     page = await browser.newPage()
-    await page.goto(entry_url, options={'waitUntil': ['load','domcontentloaded','networkidle0','networkidle2']})
+    response = await page.goto(entry_url, options={'waitUntil': ['load','domcontentloaded','networkidle0','networkidle2']})
+    if response.status != 200:
+        raise Exception(f'Invalid status code: {response.status} - check entry url and try again')
     return browser, page
 
 
@@ -236,8 +239,9 @@ async def _check_for_visible_element(page, selector):
     except pyppeteer.errors.NetworkError:
         return False
 
-async def authenticate(entry_url, *, username=None, password=None, code=None, headless=True, stay_signed_in=True):
-    print('Loading entry url...')
+
+async def _authenticate(entry_url, *, username, password, code, headless, stay_signed_in):
+    print('Loading authentication page...')
     browser, page = await _load_entry(entry_url, headless, stay_signed_in)
     # we can't really be sure whether we'll get prompted for OTC, 
     # stay logged in, etc or if the process will go straight thru to role selection
@@ -252,12 +256,40 @@ async def authenticate(entry_url, *, username=None, password=None, code=None, he
         elif await _check_for_visible_element(page, 'input[type="checkbox"][name="DontShowAgain"]'):
             await _input_stay_signed_in(page, stay_signed_in)
         elif await page.J('#signin_button'):
+            print('Getting roles...')
             roles = await _get_roles(page)
             await browser.close()
             return roles
+        elif await _check_for_visible_element(page, 'div[data-bind="text: unsafe_exceptionMessage"]'):
+            print('Something went wrong - set "headless=True" in the authenticate method and try again to debug.')
+            await browser.close()
+            break
         else:
             # wait for a known option to appear
             await asyncio.sleep(0.25)
+
+
+def authenticate(entry_url, *, username=None, password=None, code=None, headless=True, stay_signed_in=True):
+    return asyncio.get_event_loop().run_until_complete(
+        _authenticate(
+            entry_url, 
+            username=username, 
+            password=password, 
+            code=code, 
+            headless=headless, 
+            stay_signed_in=stay_signed_in))
+
+
+def get_multiple_credentials(roles, duration_seconds=60*60):
+    multi_creds = []
+    for role in roles:
+        print(f'Getting credentials for role {role.role_name} in account {role.account}...')
+        try:
+            creds = role.get_credentials(duration_seconds)
+            multi_creds.append(creds)
+        except botocore.exceptions.ClientError as e:
+            print(f'\t 👎 Error getting credentials, skipping: {type(e)}, {str(e)}')
+    return multi_creds
 
 
 if __name__ == '__main__':
@@ -272,9 +304,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 4:
         code = sys.argv[4]
 
-    roles = asyncio.get_event_loop().run_until_complete(
-            authenticate(
-                entry_url, username=username, password=password, code=code, headless=True, stay_signed_in=False))
+    roles = authenticate(entry_url, username=username, password=password, code=code, headless=True, stay_signed_in=False)
     print(roles)
     input('!')
 
