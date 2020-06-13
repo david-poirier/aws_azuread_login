@@ -39,12 +39,13 @@ class AwsRole:
         expiry = result['Credentials']['Expiration']
 
         credentials = AwsCredentials(
-                key_id, secret, session_token, expiry)
+                self, key_id, secret, session_token, expiry)
         return credentials
 
 
 class AwsCredentials:
-    def __init__(self, key_id, secret, session_token, expiry):
+    def __init__(self, role, key_id, secret, session_token, expiry):
+        self.role = role
         self.key_id = key_id
         self.secret = secret
         self.session_token = session_token

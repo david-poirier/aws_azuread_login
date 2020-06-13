@@ -6,7 +6,7 @@ with open('README.md', 'r') as fh:
 
 setup(
         name='aws_azuread_login',
-        version='1.1.1',
+        version='1.1.2',
         author='David Poirier',
         author_email='david-poirier-csn@users.noreply.github.com',
         description='Python 3.6+ library to enable programmatic Azure AD auth against AWS',
