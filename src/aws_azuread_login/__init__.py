@@ -192,7 +192,7 @@ async def _input_password(page, username, password):
             elif await _check_for_visible_element(page, error_selector):
                 password = None
                 await page.evaluate(f'() => document.querySelector(\'{input_selector}\').value = \'\'')
-                print('Incorrect password, try again')
+                print('Incorrect username or password, try again')
                 break
             # wait for one of the above to appear
             await asyncio.sleep(0.25)
