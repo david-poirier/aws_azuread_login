@@ -14,6 +14,8 @@ import aws_azuread_login
 import botocore
 import json
 
+# authenticate against azuread application url
+roles = aws_azuread_login.authenticate(os.environ['AWS_AZUREAD_ENTRY_URL'])
 
 # get creds one by one
 for role in roles:
