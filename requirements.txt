@@ -13,5 +13,5 @@ six==1.15.0
 soupsieve==2.2.1
 tqdm==4.59.0
 urllib3==1.26.4
-websockets==8.1
+websockets==9.1
 zipp==3.4.1
